@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ toponym.name }} — Топонимы Ижевска</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .nav-links { margin-bottom: 20px; display: flex; gap: 15px; }
+        .nav-link { padding: 8px 16px; background: white; border-radius: 8px; color: #2c3e50; text-decoration: none; }
+        .nav-link:hover { background: #ecf0f1; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }
+        .card-header { background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%); color: white; padding: 25px 30px; }
+        .card-header h1 { font-size: 32px; margin-bottom: 8px; }
+        .card-header .type { opacity: 0.8; font-size: 14px; margin-top: 8px; }
+        .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .card-body { padding: 30px; display: flex; flex-wrap: wrap; gap: 30px; }
+        .info-section { flex: 1; min-width: 280px; }
+        .map-section { flex: 1.5; min-width: 350px; }
+        #detail-map { height: 350px; border-radius: 12px; }
+        .info-row { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .info-label { font-weight: bold; color: #7f8c8d; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .info-value { font-size: 16px; color: #2c3e50; line-height: 1.5; }
+        .coordinates-box { font-family: monospace; background: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 13px; border: 1px solid #e9ecef; }
+        .no-coords { color: #adb5bd; font-style: italic; }
+        .back-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; color: #3498db; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        .city-name { color: #3498db; font-weight: normal; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a href="/list/" class="nav-link">📋 Список</a>
+            <a href="/map/" class="nav-link">🗺️ Карта</a>
+            <a href="/stats/" class="nav-link">📊 Статистика</a>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h1>{{ toponym.name }}</h1>
+                <div class="type">
+                    <span class="badge">{{ toponym.category.icon }} {{ toponym.category.name_ru }}</span>
+                    {% if type_name %} • {{ type_name }}{% endif %}
+                    {% if toponym.historical_name %} • ранее: {{ toponym.historical_name }}{% endif %}
+                    <span class="city-name"> • {{ toponym.city.name }}</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="info-section">
+                    <div class="info-row">
+                        <div class="info-label">📋 Идентификатор</div>
+                        <div class="info-value"><code>{{ toponym.id }}</code></div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">📝 Категория</div>
+                        <div class="info-value">{{ toponym.category.name_ru }} ({{ toponym.category.code }})</div>
+                    </div>
+
+                    {% if type_name %}
+                    <div class="info-row">
+                        <div class="info-label">🏷️ Тип объекта</div>
+                        <div class="info-value">{{ type_name }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if toponym.description %}
+                    <div class="info-row">
+                        <div class="info-label">📖 Примечание</div>
+                        <div class="info-value">{{ toponym.description|linebreaks }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if toponym.historical_name %}
+                    <div class="info-row">
+                        <div class="info-label">📜 Историческое название</div>
+                        <div class="info-value">{{ toponym.historical_name }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% for key, value in extra_data.items %}
+                    <div class="info-row">
+                        <div class="info-label">{{ key }}</div>
+                        <div class="info-value">{{ value }}</div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="info-row">
+                        <div class="info-label">📍 Географические координаты</div>
+                        <div class="info-value">
+                            {% if has_coords %}
+                                <div class="coordinates-box">
+                                    Широта: {{ toponym.center_lat|floatformat:6 }}<br>
+                                    Долгота: {{ toponym.center_lon|floatformat:6 }}
+                                </div>
+                            {% else %}
+                                <span class="no-coords">Координаты не определены</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="map-section">
+                    <div id="detail-map"></div>
+                </div>
+            </div>
+        </div>
+
+        <a href="/list/" class="back-link">← Вернуться к списку</a>
+    </div>
+
+    {% if has_coords %}
+    <script>
+        var map = L.map('detail-map').setView([{{ toponym.center_lat }}, {{ toponym.center_lon }}], 15);
+
+        // Подложка Humanitarian OSM
+        L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap',
+            subdomains: ['a', 'b', 'c'],
+            maxZoom: 19
+        }).addTo(map);
+
+        var marker = L.marker([{{ toponym.center_lat }}, {{ toponym.center_lon }}]).addTo(map);
+        marker.bindPopup('<strong>{{ toponym.name }}</strong><br>{{ toponym.category.name_ru }}').openPopup();
+    </script>
+    {% else %}
+    <script>
+        document.getElementById('detail-map').innerHTML = '<div style="height:100%; display:flex; align-items:center; justify-content:center; background:#f8f9fa; color:#adb5bd; border-radius:12px;">📍 Координаты отсутствуют</div>';
+    </script>
+    {% endif %}
+</body>
+</html>

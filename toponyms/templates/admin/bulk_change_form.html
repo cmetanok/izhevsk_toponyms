@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div style="padding: 20px;">
+    <h1>{{ title }}</h1>
+    <p>Выбрано объектов: {{ queryset.count }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% if categories %}
+        <div style="margin: 20px 0;">
+            <label><strong>Выберите новую категорию:</strong></label>
+            <select name="new_category" class="form-control" style="margin-top: 5px; padding: 8px;">
+                {% for cat in categories %}
+                <option value="{{ cat.code }}">{{ cat.name_ru }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        {% if cities %}
+        <div style="margin: 20px 0;">
+            <label><strong>Выберите город:</strong></label>
+            <select name="city_id" class="form-control" style="margin-top: 5px; padding: 8px;">
+                {% for city in cities %}
+                <option value="{{ city.id }}">{{ city.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 20px;">
+            <button type="submit" name="apply_{{ action }}" class="button" style="background: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Применить</button>
+            <a href="{% url 'admin:toponyms_toponym_changelist' %}" class="button" style="background: #95a5a6; color: white; border: none; padding: 8px 16px; border-radius: 4px; text-decoration: none; margin-left: 10px;">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

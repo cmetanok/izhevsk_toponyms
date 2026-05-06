@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список топонимов Ижевска</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+
+        /* Блок инструкции */
+        .instruction-block {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        .instruction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .instruction-header h3 {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .instruction-header .toggle-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .instruction-header .toggle-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .instruction-content {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            display: block;
+        }
+        .instruction-content.hidden {
+            display: none;
+        }
+        .instruction-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .instruction-card {
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .instruction-card strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .instruction-card p {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        .instruction-card code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .filters { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 12px; color: #666; text-transform: uppercase; }
+        .search-input, .category-select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; width: 250px; font-size: 14px; }
+        .btn { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: #2980b9; }
+        .stats { background: white; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: inline-block; }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #2c3e50; color: white; font-weight: 600; }
+        tr:hover { background: #f8f9fa; }
+        .category-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+        .cat-URB { background: #e74c3c; color: white; }
+        .cat-AGR { background: #e67e22; color: white; }
+        .cat-CHR { background: #3498db; color: white; }
+        .cat-HYD { background: #1abc9c; color: white; }
+        .cat-LIM { background: #2980b9; color: white; }
+        .cat-CRE { background: #27ae60; color: white; }
+        .cat-MEM { background: #9b59b6; color: white; }
+        .cat-NAT { background: #2ecc71; color: white; }
+        .export-buttons { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
+        .nav-links { margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        .nav-link { padding: 8px 16px; background: white; border-radius: 8px; color: #2c3e50; text-decoration: none; }
+        .nav-link.active { background: #3498db; color: white; }
+        .admin-btn { background: #2c3e50; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; }
+        .admin-btn-out { background: #e74c3c; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; }
+        .pagination { margin-top: 20px; display: flex; justify-content: center; gap: 5px; }
+        .step-links { display: flex; gap: 5px; align-items: center; }
+        .step-links a, .step-links span { padding: 8px 12px; background: white; border-radius: 6px; color: #3498db; text-decoration: none; }
+        .step-links .current { background: #3498db; color: white; }
+    </style>
+    <script>
+        function toggleInstruction() {
+            const content = document.getElementById('instructionContent');
+            const btn = document.getElementById('toggleBtn');
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                btn.textContent = '📘 Показать инструкцию';
+            } else {
+                btn.textContent = '📖 Скрыть инструкцию';
+            }
+            localStorage.setItem('instructionHidden', content.classList.contains('hidden'));
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const hidden = localStorage.getItem('instructionHidden') === 'true';
+            const content = document.getElementById('instructionContent');
+            const btn = document.getElementById('toggleBtn');
+            if (hidden) {
+                content.classList.add('hidden');
+                btn.textContent = '📘 Показать инструкцию';
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a href="/list/" class="nav-link active">📋 Список</a>
+            <a href="/map/" class="nav-link">🗺️ Карта</a>
+            <a href="/stats/" class="nav-link">📊 Статистика</a>
+            {% if user.is_authenticated %}
+                <a href="/izhevsk-admin/" class="admin-btn">👑 Админка</a>
+                <a href="/admin-logout/" class="admin-btn-out">🚪 Выйти</a>
+            {% else %}
+                <a href="/admin-login/" class="admin-btn">🔐 Вход для админа</a>
+            {% endif %}
+        </div>
+
+        <h1>Топонимы Ижевска</h1>
+
+        <!-- Блок инструкции -->
+        <div class="instruction-block">
+            <div class="instruction-header" onclick="toggleInstruction()">
+                <h3>📖 Инструкция для пользователя</h3>
+                <button class="toggle-btn" id="toggleBtn">📖 Скрыть инструкцию</button>
+            </div>
+            <div class="instruction-content" id="instructionContent">
+                <div class="instruction-grid">
+                    <div class="instruction-card">
+                        <strong>🔍 Поиск по названию</strong>
+                        <p>Введите название топонима в поле поиска. Например: <code>Красная</code>, <code>Иж</code>, <code>Ленина</code>.</p>
+                    </div>
+                    <div class="instruction-card">
+                        <strong>🏷️ Фильтр по категориям</strong>
+                        <p>Выберите категорию: улицы, реки, районы, парки и другие. Можно комбинировать.</p>
+                    </div>
+                    <div class="instruction-card">
+                        <strong>📄 Пагинация</strong>
+                        <p>Результаты разбиты по 25 записей на страницу. Используйте кнопки <code>« Первая</code>, <code>‹ Назад</code>, <code>Вперед ›</code>, <code>Последняя »</code>.</p>
+                    </div>
+                    <div class="instruction-card">
+                        <strong>📥 Экспорт данных</strong>
+                        <p>Скачайте результаты поиска в форматах <code>CSV</code> или <code>JSON</code> для дальнейшего анализа.</p>
+                    </div>
+                    <div class="instruction-card">
+                        <strong>🗺️ Карта</strong>
+                        <p>На странице карты топонимы отмечены цветными маркерами. Кликните на маркер для подробной информации.</p>
+                    </div>
+                    <div class="instruction-card">
+                        <strong>📊 Статистика</strong>
+                        <p>Страница статистики показывает общее количество топонимов, процент геокодирования и распределение по категориям.</p>
+                    </div>
+                </div>
+                <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">💡 <strong>Совет:</strong> Названия топонимов кликабельны — переходят на детальную страницу с картой и полным описанием.</p>
+            </div>
+        </div>
+
+        <div class="filters">
+            <form method="GET" style="display: contents;">
+                <div class="filter-group">
+                    <label>🔍 Поиск по названию</label>
+                    <input type="text" name="q" class="search-input" placeholder="Например: Красная, Иж..." value="{{ q }}">
+                </div>
+                <div class="filter-group">
+                    <label>🏷️ Категория</label>
+                    <select name="category" class="category-select">
+                        <option value="">Все категории</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.code }}" {% if selected_category == cat.code %}selected{% endif %}>{{ cat.icon }} {{ cat.name_ru }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn">🔍 Найти</button>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <a href="/list/" style="padding: 10px 16px; background: #ecf0f1; border-radius: 8px; color: #666; text-decoration: none;">Сбросить</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="stats">
+            📊 Найдено: <strong>{{ total }}</strong> топонимов
+            {% if q %} по запросу "{{ q }}"{% endif %}
+        </div>
+
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Название</th><th>Категория</th><th>Координаты</th></tr>
+            </thead>
+            <tbody>
+                {% for top in toponyms %}
+                <tr>
+                    <td><code>{{ top.id }}</code></td>
+                    <td><a href="/toponym/{{ top.id }}/"><strong>{{ top.name }}</strong></a></td>
+                    <td><span class="category-badge cat-{{ top.category.code }}">{{ top.category.icon }} {{ top.category.name_ru }}</span></td>
+                    <td>{% if top.center_lat %}{{ top.center_lat|floatformat:3 }}, {{ top.center_lon|floatformat:3 }}{% else %}—{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align: center;">😕 Топонимы не найдены</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if page_obj.has_other_pages %}
+        <div class="pagination">
+            <div class="step-links">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1{% if q %}&q={{ q }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">« Первая</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">‹ Назад</a>
+                {% endif %}
+                <span class="current">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Вперед ›</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if q %}&q={{ q }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">Последняя »</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="export-buttons">
+            <a href="export/?format=csv{% if q %}&q={{ q }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}" class="btn" style="background: #27ae60;">📥 Скачать CSV</a>
+            <a href="export/?format=json{% if q %}&q={{ q }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}" class="btn" style="background: #27ae60;">📥 Скачать JSON</a>
+        </div>
+    </div>
+</body>
+</html>

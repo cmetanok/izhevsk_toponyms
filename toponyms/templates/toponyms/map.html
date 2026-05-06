@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Топонимы Ижевска на карте</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 280px;
+            font-size: 14px;
+        }
+        .info-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .filter-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .filter-btn.active {
+            background: #007bff;
+            color: white;
+        }
+        .stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        .leaflet-popup-content {
+            font-size: 14px;
+        }
+        .leaflet-popup-content strong {
+            color: #007bff;
+        }
+        .nav-links {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: flex;
+            gap: 15px;
+        }
+        .nav-links a {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 10px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            font-size: 11px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 6px;
+        }
+        .admin-btn { background: #2c3e50; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; }
+        .admin-btn-out { background: #e74c3c; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="nav-links">
+    <a href="/list/" class="nav-link">📋 Список</a>
+    <a href="/map/" class="nav-link" style="font-weight: bold;">🗺️ Карта</a>
+    <a href="/stats/" class="nav-link">📊 Статистика</a>
+    {% if user.is_authenticated %}
+        <a href="/izhevsk-admin/" class="admin-btn">👑 Администратор</a>
+        <a href="/admin-logout/" class="admin-btn-out">🚪 Выйти</a>
+    {% else %}
+        <a href="/admin-login/" class="admin-btn">🔐 Вход для админа</a>
+    {% endif %}
+    </div>
+
+    <div class="info-panel">
+        <h3>🗺️ Топонимы Ижевска</h3>
+        <input type="text" id="search" class="search-box" placeholder="Поиск по названию...">
+        <div class="filter-buttons">
+            <button class="filter-btn active" data-category="all">Все</button>
+            <button class="filter-btn" data-category="URB">🏙️ Улицы</button>
+            <button class="filter-btn" data-category="AGR">🏛️ Площади</button>
+            <button class="filter-btn" data-category="CHR">🏘️ Районы</button>
+            <button class="filter-btn" data-category="HYD">💧 Реки</button>
+            <button class="filter-btn" data-category="LIM">🌊 Пруды</button>
+            <button class="filter-btn" data-category="CRE">💦 Родники</button>
+            <button class="filter-btn" data-category="MEM">📜 Меморионимы</button>
+            <button class="filter-btn" data-category="NAT">🌳 Парки</button>
+        </div>
+        <div class="stats" id="stats">
+            Загрузка...
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="legend-color" style="background: #e74c3c;"></div> Улицы (точки)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #e67e22;"></div> Площади (точки)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #3498db;"></div> Районы (области)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #1abc9c;"></div> Реки (точки)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #27ae60;"></div> Родники (точки)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #2ecc71;"></div> Парки (области)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #9b59b6;"></div> Памятные места</div>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        var map = L.map('map').setView([56.85, 53.20], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap',
+            subdomains: ['a', 'b', 'c'],
+            maxZoom: 19
+        }).addTo(map);
+
+        var layers = [];
+        var allData = [];
+
+        var categoryColors = {
+            'URB': '#e74c3c',
+            'AGR': '#e67e22',
+            'CHR': '#3498db',
+            'HYD': '#1abc9c',
+            'LIM': '#2980b9',
+            'CRE': '#27ae60',
+            'MEM': '#9b59b6',
+            'NAT': '#2ecc71'
+        };
+
+        var categoryNames = {
+            'URB': 'Улица',
+            'AGR': 'Площадь',
+            'CHR': 'Район',
+            'HYD': 'Река',
+            'LIM': 'Пруд',
+            'CRE': 'Родник',
+            'MEM': 'Меморионим',
+            'NAT': 'Парк'
+        };
+
+        fetch('/api/toponyms/')
+            .then(response => response.json())
+            .then(data => {
+                allData = data.filter(item => item.center_lat && item.center_lon);
+                document.getElementById('stats').innerHTML = `📊 Всего: ${allData.length} топонимов с координатами`;
+                updateMap();
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                document.getElementById('stats').innerHTML = '❌ Ошибка загрузки';
+            });
+
+        function updateMap() {
+            layers.forEach(layer => map.removeLayer(layer));
+            layers = [];
+
+            var searchText = document.getElementById('search').value.toLowerCase();
+            var activeCategory = document.querySelector('.filter-btn.active').dataset.category;
+
+            var filtered = allData.filter(item => {
+                if (activeCategory !== 'all' && item.category !== activeCategory) return false;
+                if (searchText && !item.name.toLowerCase().includes(searchText)) return false;
+                return true;
+            });
+
+            document.getElementById('stats').innerHTML = `📊 Показано: ${filtered.length} из ${allData.length} топонимов`;
+
+            filtered.forEach(item => {
+                var color = categoryColors[item.category] || '#95a5a6';
+                var categoryName = categoryNames[item.category] || 'Топоним';
+                var popupContent = `
+                    <strong>${item.name}</strong><br>
+                    <small>${categoryName}</small><br>
+                    <a href="/toponym/${item.id}/" target="_blank">📖 Подробнее</a>
+                `;
+
+                try {
+                    // Полигон (район, парк, пруд)
+                    if (item.geometry_type === 'Polygon' && item.geometry_coords && item.geometry_coords.coordinates) {
+                        var latlngs = item.geometry_coords.coordinates[0].map(coord => [coord[1], coord[0]]);
+                        var layer = L.polygon(latlngs, {
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.3,
+                            weight: 2
+                        }).addTo(map);
+                        layer.bindPopup(popupContent);
+                        layers.push(layer);
+                    }
+                    // Точка (остальные объекты)
+                    else {
+                        var marker = L.circleMarker([item.center_lat, item.center_lon], {
+                            radius: 8,
+                            fillColor: color,
+                            color: '#fff',
+                            weight: 2,
+                            fillOpacity: 0.8
+                        }).addTo(map);
+                        marker.bindPopup(popupContent);
+                        layers.push(marker);
+                    }
+                } catch(e) {
+                    var marker = L.circleMarker([item.center_lat, item.center_lon], {
+                        radius: 6,
+                        fillColor: color,
+                        color: '#fff',
+                        weight: 2,
+                        fillOpacity: 0.8
+                    }).addTo(map);
+                    marker.bindPopup(popupContent);
+                    layers.push(marker);
+                }
+            });
+
+            if (layers.length > 0) {
+                try {
+                    var group = L.featureGroup(layers);
+                    map.fitBounds(group.getBounds().pad(0.1));
+                } catch(e) {}
+            }
+        }
+
+        document.getElementById('search').addEventListener('input', updateMap);
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                updateMap();
+            });
+        });
+    </script>
+</body>
+</html>
