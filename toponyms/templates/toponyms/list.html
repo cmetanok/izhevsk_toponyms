@@ -9,79 +9,6 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
         h1 { color: #2c3e50; margin-bottom: 20px; }
-
-        /* Блок инструкции */
-        .instruction-block {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            transition: all 0.3s;
-        }
-        .instruction-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            user-select: none;
-        }
-        .instruction-header h3 {
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .instruction-header .toggle-btn {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-        .instruction-header .toggle-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        .instruction-content {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.3);
-            display: block;
-        }
-        .instruction-content.hidden {
-            display: none;
-        }
-        .instruction-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-top: 10px;
-        }
-        .instruction-card {
-            background: rgba(255,255,255,0.15);
-            border-radius: 10px;
-            padding: 12px;
-        }
-        .instruction-card strong {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-        }
-        .instruction-card p {
-            font-size: 13px;
-            opacity: 0.9;
-        }
-        .instruction-card code {
-            background: rgba(0,0,0,0.3);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
         .filters { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .filter-group { display: flex; flex-direction: column; gap: 5px; }
         .filter-group label { font-size: 12px; color: #666; text-transform: uppercase; }
@@ -112,20 +39,26 @@
         .step-links { display: flex; gap: 5px; align-items: center; }
         .step-links a, .step-links span { padding: 8px 12px; background: white; border-radius: 6px; color: #3498db; text-decoration: none; }
         .step-links .current { background: #3498db; color: white; }
+        .instruction-block { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .instruction-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .instruction-header h3 { font-size: 18px; display: flex; align-items: center; gap: 10px; }
+        .toggle-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 12px; border-radius: 20px; cursor: pointer; }
+        .instruction-content { margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3); }
+        .instruction-content.hidden { display: none; }
+        .instruction-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; }
+        .instruction-card { background: rgba(255,255,255,0.15); border-radius: 10px; padding: 12px; }
+        .instruction-card strong { display: block; margin-bottom: 5px; }
+        .instruction-card p { font-size: 13px; opacity: 0.9; }
+        .instruction-card code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; }
     </style>
     <script>
         function toggleInstruction() {
             const content = document.getElementById('instructionContent');
             const btn = document.getElementById('toggleBtn');
             content.classList.toggle('hidden');
-            if (content.classList.contains('hidden')) {
-                btn.textContent = '📘 Показать инструкцию';
-            } else {
-                btn.textContent = '📖 Скрыть инструкцию';
-            }
+            btn.textContent = content.classList.contains('hidden') ? '📘 Показать инструкцию' : '📖 Скрыть инструкцию';
             localStorage.setItem('instructionHidden', content.classList.contains('hidden'));
         }
-
         document.addEventListener('DOMContentLoaded', function() {
             const hidden = localStorage.getItem('instructionHidden') === 'true';
             const content = document.getElementById('instructionContent');
@@ -153,7 +86,6 @@
 
         <h1>Топонимы Ижевска</h1>
 
-        <!-- Блок инструкции -->
         <div class="instruction-block">
             <div class="instruction-header" onclick="toggleInstruction()">
                 <h3>📖 Инструкция для пользователя</h3>
@@ -161,32 +93,14 @@
             </div>
             <div class="instruction-content" id="instructionContent">
                 <div class="instruction-grid">
-                    <div class="instruction-card">
-                        <strong>🔍 Поиск по названию</strong>
-                        <p>Введите название топонима в поле поиска. Например: <code>Красная</code>, <code>Иж</code>, <code>Ленина</code>.</p>
-                    </div>
-                    <div class="instruction-card">
-                        <strong>🏷️ Фильтр по категориям</strong>
-                        <p>Выберите категорию: улицы, реки, районы, парки и другие. Можно комбинировать.</p>
-                    </div>
-                    <div class="instruction-card">
-                        <strong>📄 Пагинация</strong>
-                        <p>Результаты разбиты по 25 записей на страницу. Используйте кнопки <code>« Первая</code>, <code>‹ Назад</code>, <code>Вперед ›</code>, <code>Последняя »</code>.</p>
-                    </div>
-                    <div class="instruction-card">
-                        <strong>📥 Экспорт данных</strong>
-                        <p>Скачайте результаты поиска в форматах <code>CSV</code> или <code>JSON</code> для дальнейшего анализа.</p>
-                    </div>
-                    <div class="instruction-card">
-                        <strong>🗺️ Карта</strong>
-                        <p>На странице карты топонимы отмечены цветными маркерами. Кликните на маркер для подробной информации.</p>
-                    </div>
-                    <div class="instruction-card">
-                        <strong>📊 Статистика</strong>
-                        <p>Страница статистики показывает общее количество топонимов, процент геокодирования и распределение по категориям.</p>
-                    </div>
+                    <div class="instruction-card"><strong>🔍 Поиск</strong><p>Поиск по официальным и неофициальным названиям. Например: <code>Красная</code>, <code>Иж</code></p></div>
+                    <div class="instruction-card"><strong>🏷️ Фильтр</strong><p>Выберите категорию: улицы, реки, районы, парки и другие.</p></div>
+                    <div class="instruction-card"><strong>📄 Пагинация</strong><p>Результаты по 25 записей на страницу. Кнопки «Первая», «Назад», «Вперед», «Последняя».</p></div>
+                    <div class="instruction-card"><strong>📥 Экспорт</strong><p>Скачайте результаты поиска в форматах <code>CSV</code> или <code>JSON</code>.</p></div>
+                    <div class="instruction-card"><strong>🗺️ Карта</strong><p>Топонимы отмечены цветными маркерами. Кликните для подробной информации.</p></div>
+                    <div class="instruction-card"><strong>📊 Статистика</strong><p>Анализ БД: количество топонимов, процент геокодирования, распределение по категориям.</p></div>
                 </div>
-                <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">💡 <strong>Совет:</strong> Названия топонимов кликабельны — переходят на детальную страницу с картой и полным описанием.</p>
+                <p style="margin-top: 15px; font-size: 12px;">💡 <strong>Совет:</strong> Названия топонимов кликабельны — переходят на детальную страницу с картой и полным описанием.</p>
             </div>
         </div>
 
@@ -194,7 +108,7 @@
             <form method="GET" style="display: contents;">
                 <div class="filter-group">
                     <label>🔍 Поиск по названию</label>
-                    <input type="text" name="q" class="search-input" placeholder="Например: Красная, Иж..." value="{{ q }}">
+                    <input type="text" name="q" class="search-input" placeholder="Например: Красная, Иж, Колтоши..." value="{{ q }}">
                 </div>
                 <div class="filter-group">
                     <label>🏷️ Категория</label>
@@ -223,7 +137,13 @@
 
         <table>
             <thead>
-                <tr><th>ID</th><th>Название</th><th>Категория</th><th>Координаты</th></tr>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Категория</th>
+                    <th>Неофициальные названия</th>
+                    <th>Координаты</th>
+                </tr>
             </thead>
             <tbody>
                 {% for top in toponyms %}
@@ -231,10 +151,11 @@
                     <td><code>{{ top.id }}</code></td>
                     <td><a href="/toponym/{{ top.id }}/"><strong>{{ top.name }}</strong></a></td>
                     <td><span class="category-badge cat-{{ top.category.code }}">{{ top.category.icon }} {{ top.category.name_ru }}</span></td>
+                    <td>{% if top.unofficial_names %}{{ top.unofficial_names|join:", " }}{% else %}—{% endif %}</td>
                     <td>{% if top.center_lat %}{{ top.center_lat|floatformat:3 }}, {{ top.center_lon|floatformat:3 }}{% else %}—{% endif %}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="4" style="text-align: center;">😕 Топонимы не найдены</td></tr>
+                <tr><td colspan="5" style="text-align: center;">😕 Топонимы не найдены</td></tr>
                 {% endfor %}
             </tbody>
         </table>

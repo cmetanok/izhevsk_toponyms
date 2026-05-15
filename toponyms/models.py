@@ -1,9 +1,23 @@
 from django.db import models
 
 
-# ============================================================
-# 1. ГЕОГРАФИЧЕСКАЯ ИЕРАРХИЯ
-# ============================================================
+class Category(models.Model):
+    """Модель категорий топонимов (нормализация)"""
+    code = models.CharField(max_length=10, primary_key=True, verbose_name='Код')
+    name_ru = models.CharField(max_length=50, verbose_name='Название (рус.)')
+    name_en = models.CharField(max_length=50, blank=True, verbose_name='Название (англ.)')
+    description = models.TextField(blank=True, verbose_name='Описание')
+    icon = models.CharField(max_length=50, blank=True, help_text='Emoji или CSS класс', verbose_name='Иконка')
+    order = models.IntegerField(default=0, verbose_name='Порядок сортировки')
+
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+        ordering = ['order', 'name_ru']
+
+    def __str__(self):
+        return f"{self.name_ru} ({self.code})"
+
 
 class Country(models.Model):
     """Страна"""
@@ -38,44 +52,8 @@ class City(models.Model):
         return f"{self.name} ({self.country.name_ru})"
 
 
-# ============================================================
-# 2. КАТЕГОРИИ ТОПОНИМОВ (НОРМАЛИЗАЦИЯ)
-# ============================================================
-
-class ToponymCategory(models.Model):
-    """Категория топонима (урбанонимы, гидронимы, хоронимы и т.д.)"""
-    CATEGORY_TYPES = [
-        ('URBAN', 'Урбанонимы'),
-        ('AGORA', 'Агоронимы'),
-        ('CHORO', 'Хоронимы'),
-        ('HYDRO', 'Гидронимы'),
-        ('LIMNO', 'Лимнонимы'),
-        ('CRENO', 'Кренонимы'),
-        ('MEMOR', 'Меморионимы'),
-        ('NATURE', 'Природные объекты'),
-    ]
-
-    code = models.CharField(max_length=10, primary_key=True, verbose_name='Код категории')
-    type = models.CharField(max_length=10, choices=CATEGORY_TYPES, verbose_name='Тип категории')
-    name_ru = models.CharField(max_length=100, verbose_name='Название (рус.)')
-    name_en = models.CharField(max_length=100, blank=True, verbose_name='Название (англ.)')
-    description = models.TextField(blank=True, verbose_name='Описание')
-    icon = models.CharField(max_length=50, blank=True, verbose_name='Иконка')
-
-    class Meta:
-        verbose_name = 'Категория топонима'
-        verbose_name_plural = 'Категории топонимов'
-
-    def __str__(self):
-        return self.name_ru
-
-
-# ============================================================
-# 3. ОСНОВНАЯ ТАБЛИЦА ТОПОНИМОВ (ПОЛИМОРФНАЯ)
-# ============================================================
-
 class Toponym(models.Model):
-    """Основная таблица топонимов (общие поля для всех типов)"""
+    """Модель топонима (расширенная)"""
 
     GEOMETRY_TYPES = [
         ('Point', 'Точка'),
@@ -83,7 +61,7 @@ class Toponym(models.Model):
         ('Polygon', 'Полигон'),
     ]
 
-    # Идентификация
+    # Основные поля
     id = models.CharField(max_length=20, primary_key=True, verbose_name='ID топонима')
     name = models.CharField(max_length=200, verbose_name='Название')
 
@@ -91,8 +69,7 @@ class Toponym(models.Model):
     city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='toponyms', verbose_name='Город')
 
     # Категоризация
-    category = models.ForeignKey(ToponymCategory, on_delete=models.PROTECT, related_name='toponyms',
-                                 verbose_name='Категория')
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='toponyms', verbose_name='Категория')
 
     # Геометрия
     geometry_type = models.CharField(max_length=20, choices=GEOMETRY_TYPES, default='Point',
@@ -104,23 +81,37 @@ class Toponym(models.Model):
     # Дополнительная информация
     description = models.TextField(blank=True, verbose_name='Описание')
     historical_name = models.CharField(max_length=200, blank=True, verbose_name='Историческое название')
+    renamed_year = models.IntegerField(null=True, blank=True, verbose_name='Год переименования')
+
+    # НОВЫЕ ПОЛЯ ДЛЯ НЕОФИЦИАЛЬНЫХ НАЗВАНИЙ
+    has_official_name = models.BooleanField(default=True, verbose_name='Имеет официальное название')
+    unofficial_names = models.JSONField(default=list, blank=True, verbose_name='Неофициальные названия (список)')
+
     extra_info = models.JSONField(default=dict, blank=True, verbose_name='Дополнительные данные')
 
     class Meta:
         verbose_name = 'Топоним'
         verbose_name_plural = 'Топонимы'
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['category']),
+            models.Index(fields=['center_lat', 'center_lon']),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.category.name_ru}) - {self.city.name}"
 
+    def get_all_search_names(self):
+        """Возвращает список всех названий для поиска (официальное + неофициальные)"""
+        names = [self.name]
+        if self.unofficial_names:
+            names.extend(self.unofficial_names)
+        return names
 
-# ============================================================
-# 4. СПЕЦИАЛИЗИРОВАННЫЕ ТАБЛИЦЫ (ДЛЯ КАЖДОГО ТИПА ТОПОНИМОВ)
-# ============================================================
 
+# Специализированные таблицы (оставляем как есть)
 class Urbanonym(models.Model):
-    """Урбаноним (улица, площадь, шоссе, переулок и т.д.)"""
     toponym = models.OneToOneField(Toponym, on_delete=models.CASCADE, primary_key=True, related_name='urbanonym')
     type_name = models.CharField(max_length=50, verbose_name='Тип (улица, площадь, шоссе...)')
     length_km = models.FloatField(null=True, blank=True, verbose_name='Длина (км)')
@@ -134,7 +125,6 @@ class Urbanonym(models.Model):
 
 
 class Agoronym(models.Model):
-    """Агороним (площадь, рынок, базар)"""
     toponym = models.OneToOneField(Toponym, on_delete=models.CASCADE, primary_key=True, related_name='agoronym')
     type_name = models.CharField(max_length=50, verbose_name='Тип (площадь, рынок...)')
     square_m2 = models.FloatField(null=True, blank=True, verbose_name='Площадь (м²)')
@@ -145,7 +135,6 @@ class Agoronym(models.Model):
 
 
 class Choronym(models.Model):
-    """Хороним (район, микрорайон, жилой массив)"""
     toponym = models.OneToOneField(Toponym, on_delete=models.CASCADE, primary_key=True, related_name='choronym')
     type_name = models.CharField(max_length=50, verbose_name='Тип (район, микрорайон...)')
     population = models.IntegerField(null=True, blank=True, verbose_name='Население')
@@ -156,7 +145,6 @@ class Choronym(models.Model):
 
 
 class Hydronym(models.Model):
-    """Гидроним (река, ручей)"""
     toponym = models.OneToOneField(Toponym, on_delete=models.CASCADE, primary_key=True, related_name='hydronym')
     type_name = models.CharField(max_length=50, verbose_name='Тип (река, ручей...)')
     length_km = models.FloatField(null=True, blank=True, verbose_name='Длина (км)')
@@ -167,7 +155,6 @@ class Hydronym(models.Model):
 
 
 class Limnonim(models.Model):
-    """Лимноним (пруд, озеро)"""
     toponym = models.OneToOneField(Toponym, on_delete=models.CASCADE, primary_key=True, related_name='limnonim')
     type_name = models.CharField(max_length=50, verbose_name='Тип (пруд, озеро...)')
     area_km2 = models.FloatField(null=True, blank=True, verbose_name='Площадь (км²)')
@@ -178,7 +165,6 @@ class Limnonim(models.Model):
 
 
 class Crenonym(models.Model):
-    """Креноним (родник, ключ, источник)"""
     toponym = models.OneToOneField(Toponym, on_delete=models.CASCADE, primary_key=True, related_name='crenonym')
     type_name = models.CharField(max_length=50, verbose_name='Тип (родник, ключ...)')
     flow_rate = models.FloatField(null=True, blank=True, verbose_name='Дебит (л/с)')
@@ -189,10 +175,12 @@ class Crenonym(models.Model):
 
 
 class Memorionim(models.Model):
-    """Меморионим (памятные места, части пруда, мысы)"""
+    """Меморионим (памятники, памятные места, мемориалы)"""
     toponym = models.OneToOneField(Toponym, on_delete=models.CASCADE, primary_key=True, related_name='memorionim')
-    type_name = models.CharField(max_length=50, verbose_name='Тип (мыс, поляна, часть...)')
+    type_name = models.CharField(max_length=50, verbose_name='Тип (памятник, мемориал, братская могила...)')
     historical_event = models.TextField(blank=True, verbose_name='Историческое событие')
+    year_opened = models.IntegerField(null=True, blank=True, verbose_name='Год открытия')
+    architect = models.CharField(max_length=200, blank=True, verbose_name='Автор/архитектор')
 
     class Meta:
         verbose_name = 'Меморионим'
@@ -200,7 +188,6 @@ class Memorionim(models.Model):
 
 
 class NaturalObject(models.Model):
-    """Природный объект (парк, лес, овраг)"""
     toponym = models.OneToOneField(Toponym, on_delete=models.CASCADE, primary_key=True, related_name='natural_object')
     type_name = models.CharField(max_length=50, verbose_name='Тип (парк, лес, овраг...)')
     area_km2 = models.FloatField(null=True, blank=True, verbose_name='Площадь (км²)')

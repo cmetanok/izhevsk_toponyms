@@ -2,31 +2,30 @@ from django.contrib import admin
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
+from django.db.models import Count
+from django.urls import path
 from .models import (
-    Country, City, ToponymCategory, Toponym,
+    Country, City, Category, Toponym,
     Urbanonym, Agoronym, Choronym, Hydronym,
     Limnonim, Crenonym, Memorionim, NaturalObject
 )
 
 
-# ============================================================
-# АДМИНКА ДЛЯ ТОПОНИМОВ (с Bulk-действиями)
-# ============================================================
-
 @admin.register(Toponym)
 class ToponymAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'category', 'city', 'has_coords', 'has_polygon')
-    list_filter = ('category', 'city', 'geometry_type')
-    search_fields = ('name', 'id', 'description', 'historical_name')
-    list_editable = ('category',)
+    list_display = ('id', 'name', 'category', 'city', 'has_official_name', 'renamed_year', 'has_coords', 'has_polygon')
+    list_filter = ('category', 'city', 'geometry_type', 'has_official_name')
+    search_fields = ('name', 'id', 'description', 'historical_name', 'unofficial_names')
+    list_editable = ('category', 'has_official_name')
     list_per_page = 50
 
     actions = ['bulk_change_category', 'bulk_clear_coords', 'bulk_add_to_city']
 
     fieldsets = (
         ('Идентификация', {'fields': ('id', 'name', 'category', 'city')}),
+        ('Названия', {'fields': ('has_official_name', 'unofficial_names', 'historical_name', 'renamed_year')}),
         ('Геометрия', {'fields': ('geometry_type', 'geometry_coords', 'center_lat', 'center_lon')}),
-        ('Описание', {'fields': ('description', 'historical_name', 'extra_info')}),
+        ('Описание', {'fields': ('description', 'extra_info')}),
     )
 
     def has_coords(self, obj):
@@ -41,7 +40,13 @@ class ToponymAdmin(admin.ModelAdmin):
     has_polygon.boolean = True
     has_polygon.short_description = 'Полигон'
 
-    # BULK ACTIONS
+    def get_search_results(self, request, queryset, search_term):
+        """Расширенный поиск по официальным и неофициальным названиям"""
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        if search_term:
+            queryset |= self.model.objects.filter(unofficial_names__icontains=search_term)
+        return queryset, use_distinct
+
     def bulk_change_category(self, request, queryset):
         if 'apply_category' in request.POST:
             new_category = request.POST.get('new_category')
@@ -50,7 +55,7 @@ class ToponymAdmin(admin.ModelAdmin):
                 self.message_user(request, f'Обновлено {updated} топонимов', messages.SUCCESS)
                 return HttpResponseRedirect(request.get_full_path())
 
-        categories = ToponymCategory.objects.all()
+        categories = Category.objects.all()
         context = {
             'title': 'Сменить категорию',
             'queryset': queryset,
@@ -86,10 +91,36 @@ class ToponymAdmin(admin.ModelAdmin):
 
     bulk_add_to_city.short_description = "🏙️ Привязать к городу выбранные"
 
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('stats-report/', self.admin_site.admin_view(self.stats_report_view), name='toponyms_stats_report'),
+        ]
+        return custom_urls + urls
 
-# ============================================================
-# АДМИНКА ДЛЯ ОСТАЛЬНЫХ МОДЕЛЕЙ
-# ============================================================
+    def stats_report_view(self, request):
+        stats = []
+        categories = Category.objects.all()
+
+        for cat in categories:
+            total = Toponym.objects.filter(category=cat).count()
+            with_coords = Toponym.objects.filter(category=cat, center_lat__isnull=False).count()
+            percent = round(with_coords / total * 100, 1) if total > 0 else 0
+            row_class = 'low-percent' if percent < 30 else ''
+            stats.append({
+                'category_name': f"{cat.icon} {cat.name_ru}",
+                'total': total,
+                'with_coords': with_coords,
+                'percent': percent,
+                'row_class': row_class,
+            })
+
+        context = {
+            'stats': stats,
+            'title': 'Статистика геокодирования по категориям',
+        }
+        return render(request, 'admin/toponyms_stats_report.html', context)
+
 
 @admin.register(Country)
 class CountryAdmin(admin.ModelAdmin):
@@ -104,9 +135,9 @@ class CityAdmin(admin.ModelAdmin):
     list_filter = ('country',)
 
 
-@admin.register(ToponymCategory)
-class ToponymCategoryAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name_ru', 'icon')
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name_ru', 'icon', 'order')
     search_fields = ('name_ru', 'code')
 
 
@@ -148,8 +179,8 @@ class CrenonymAdmin(admin.ModelAdmin):
 
 @admin.register(Memorionim)
 class MemorionimAdmin(admin.ModelAdmin):
-    list_display = ('toponym', 'type_name', 'historical_event')
-    search_fields = ('toponym__name',)
+    list_display = ('toponym', 'type_name', 'year_opened', 'architect')
+    search_fields = ('toponym__name', 'architect')
 
 
 @admin.register(NaturalObject)

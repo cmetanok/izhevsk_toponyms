@@ -10,14 +10,18 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; }
-        .nav-links { margin-bottom: 20px; display: flex; gap: 15px; }
+        .nav-links { margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
         .nav-link { padding: 8px 16px; background: white; border-radius: 8px; color: #2c3e50; text-decoration: none; }
         .nav-link:hover { background: #ecf0f1; }
+        .admin-btn { background: #2c3e50; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; }
+        .admin-btn-out { background: #e74c3c; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; }
         .card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }
         .card-header { background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%); color: white; padding: 25px 30px; }
         .card-header h1 { font-size: 32px; margin-bottom: 8px; }
         .card-header .type { opacity: 0.8; font-size: 14px; margin-top: 8px; }
         .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .official-badge { background: #27ae60; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; display: inline-block; }
+        .unofficial-badge { background: #f39c12; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; display: inline-block; }
         .card-body { padding: 30px; display: flex; flex-wrap: wrap; gap: 30px; }
         .info-section { flex: 1; min-width: 280px; }
         .map-section { flex: 1.5; min-width: 350px; }
@@ -30,6 +34,7 @@
         .back-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; color: #3498db; text-decoration: none; }
         .back-link:hover { text-decoration: underline; }
         .city-name { color: #3498db; font-weight: normal; }
+        .unofficial-list { background: #fef9e7; padding: 10px; border-radius: 8px; border-left: 4px solid #f39c12; }
     </style>
 </head>
 <body>
@@ -38,6 +43,12 @@
             <a href="/list/" class="nav-link">📋 Список</a>
             <a href="/map/" class="nav-link">🗺️ Карта</a>
             <a href="/stats/" class="nav-link">📊 Статистика</a>
+            {% if user.is_authenticated %}
+                <a href="/izhevsk-admin/" class="admin-btn">👑 Админка</a>
+                <a href="/admin-logout/" class="admin-btn-out">🚪 Выйти</a>
+            {% else %}
+                <a href="/admin-login/" class="admin-btn">🔐 Вход для админа</a>
+            {% endif %}
         </div>
 
         <div class="card">
@@ -45,8 +56,9 @@
                 <h1>{{ toponym.name }}</h1>
                 <div class="type">
                     <span class="badge">{{ toponym.category.icon }} {{ toponym.category.name_ru }}</span>
-                    {% if type_name %} • {{ type_name }}{% endif %}
-                    {% if toponym.historical_name %} • ранее: {{ toponym.historical_name }}{% endif %}
+                    {% if not toponym.has_official_name %}
+                        <span class="unofficial-badge">⚠️ Неофициальное название</span>
+                    {% endif %}
                     <span class="city-name"> • {{ toponym.city.name }}</span>
                 </div>
             </div>
@@ -62,17 +74,14 @@
                         <div class="info-value">{{ toponym.category.name_ru }} ({{ toponym.category.code }})</div>
                     </div>
 
-                    {% if type_name %}
+                    {% if toponym.unofficial_names %}
                     <div class="info-row">
-                        <div class="info-label">🏷️ Тип объекта</div>
-                        <div class="info-value">{{ type_name }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if toponym.description %}
-                    <div class="info-row">
-                        <div class="info-label">📖 Примечание</div>
-                        <div class="info-value">{{ toponym.description|linebreaks }}</div>
+                        <div class="info-label">🏷️ Неофициальные названия</div>
+                        <div class="info-value">
+                            <div class="unofficial-list">
+                                {{ toponym.unofficial_names|join:", " }}
+                            </div>
+                        </div>
                     </div>
                     {% endif %}
 
@@ -83,12 +92,19 @@
                     </div>
                     {% endif %}
 
-                    {% for key, value in extra_data.items %}
+                    {% if toponym.renamed_year %}
                     <div class="info-row">
-                        <div class="info-label">{{ key }}</div>
-                        <div class="info-value">{{ value }}</div>
+                        <div class="info-label">📅 Год переименования</div>
+                        <div class="info-value">{{ toponym.renamed_year }}</div>
                     </div>
-                    {% endfor %}
+                    {% endif %}
+
+                    {% if toponym.description %}
+                    <div class="info-row">
+                        <div class="info-label">📖 Примечание</div>
+                        <div class="info-value">{{ toponym.description|linebreaks }}</div>
+                    </div>
+                    {% endif %}
 
                     <div class="info-row">
                         <div class="info-label">📍 Географические координаты</div>
@@ -118,7 +134,6 @@
     <script>
         var map = L.map('detail-map').setView([{{ toponym.center_lat }}, {{ toponym.center_lon }}], 15);
 
-        // Подложка Humanitarian OSM
         L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap',
             subdomains: ['a', 'b', 'c'],
