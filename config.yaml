@@ -1,0 +1,16 @@
+project:
+  name: izhevsk-toponyms
+  language: python
+  runtime: python:3.10
+
+deploy:
+  build: |
+    pip install -r requirements.txt
+  run: python manage.py migrate && python manage.py collectstatic --noinput && gunicorn izh_toponyms_project.wsgi:application
+
+settings:
+  domain: izhevsk-toponyms.amvera.ru
+  static:
+    - /static
+  media:
+    - /media
